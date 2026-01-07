@@ -1,66 +1,48 @@
 import sys
-import os
 import json
-from pathlib import Path
-import traceback
+import os
+import whisper
 
-def send_status(status_type, **kwargs):
-    """Send a JSON status line to stdout, flush immediately."""
-    data = {"status": status_type}
-    data.update(kwargs)
-    print(json.dumps(data))
-    sys.stdout.flush()
-
-def transcribe_audio(audio_path, output_path):
-    try:
-        # Import whisper here so import errors are reported via our JSON messages
-        try:
-            import whisper
-        except Exception as e:
-            send_status("ERROR", message=f"Failed to import whisper: {e}", traceback=traceback.format_exc())
-            return 2
-        audio_path = Path(audio_path).resolve()
-        output_path = Path(output_path).resolve()
-
-        if not audio_path.is_file():
-            send_status("ERROR", message=f"Audio file not found: {audio_path}")
-            return 2
-
-        send_status("transcribe", line=f"Loading Whisper model...")
-
-        # Load model (CPU fallback if no GPU)
-        model = whisper.load_model("base")
-        send_status("transcribe", line=f"Model loaded. Starting transcription...")
-
-        # Run transcription
-        result = model.transcribe(str(audio_path), verbose=False)
-
-        # Emit segments so the server can stream partial results
-        for seg in result.get("segments", []):
-            send_status("transcribing_segment", start=seg.get("start"), end=seg.get("end"), text=seg.get("text"))
-
-        # Save full transcript
-        with open(output_path, "w", encoding="utf-8") as f:
-            f.write(result.get("text", ""))
-
-        send_status("transcribe", line=f"Transcription finished successfully.")
-        send_status("done", transcript=str(output_path))
-        # Signal the parent process that transcription completed successfully
-        print("TRANSCRIBE_OK")
-        sys.stdout.flush()
-
-        return 0
-
-    except Exception as e:
-        send_status("ERROR", message=str(e), traceback=traceback.format_exc())
-        return 2
+def stream_transcription(audio_path, transcript_path):
+    model = whisper.load_model("base")  # choose "tiny", "base", "small", "medium", "large"
+    result = model.transcribe(audio_path, verbose=False)
+    
+    segments = result.get("segments", [])
+    
+    with open(transcript_path, "w", encoding="utf-8") as f:
+        for i, seg in enumerate(segments, start=1):
+            text = seg.get("text", "").strip()
+            # Write to transcript file
+            f.write(text + " ")
+            f.flush()
+            
+            # Send JSON line to stdout for SSE updates
+            print(json.dumps({
+                "status": "transcribing_segment",
+                "segment": i,
+                "start": seg.get("start"),
+                "end": seg.get("end"),
+                "text": text
+            }), flush=True)
+    
+    # Also write final transcript with line breaks
+    with open(transcript_path, "w", encoding="utf-8") as f:
+        f.write(result.get("text", "").strip())
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:
-        send_status("ERROR", message="Usage: python transcribe.py <audio.wav> <transcript.txt>")
-        sys.exit(2)
+        print(json.dumps({"error": "Missing arguments"}))
+        sys.exit(1)
 
-    audio_file = sys.argv[1]
-    transcript_file = sys.argv[2]
-    exit_code = transcribe_audio(audio_file, transcript_file)
-    sys.exit(exit_code)
+    audio_path = sys.argv[1]
+    transcript_path = sys.argv[2]
+
+    if not os.path.exists(audio_path):
+        print(json.dumps({"error": "Audio file not found"}))
+        sys.exit(1)
+
+    try:
+        stream_transcription(audio_path, transcript_path)
+    except Exception as e:
+        print(json.dumps({"error": str(e)}))
+        sys.exit(1)

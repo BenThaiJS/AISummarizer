@@ -1,3 +1,11 @@
+# Whisper for transcription
 openai-whisper
-# Note: whisper requires PyTorch. Install torch appropriate for your platform.
-# Example (CPU): pip install torch --index-url https://download.pytorch.org/whl/cpu
+
+# Faster audio processing
+ffmpeg-python
+
+# Optional: for better performance, GPU support, install PyTorch with CUDA if available
+torch
+
+# You may also need numpy
+numpy
