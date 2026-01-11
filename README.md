@@ -4,7 +4,31 @@ This project downloads YouTube audio, transcribes it with Whisper, summarizes it
 
 ## Features
 - Summarize by YouTube URL
-- Upload local audio/video files and summarize
+- Upload local audio/video files and summarize# YouTube Summarizer
+
+This project downloads YouTube audio, transcribes it locally with Whisper, summarizes it via Ollama, and provides a simple React UI with live progress updates.
+
+## Features
+- Summarize YouTube videos by URL
+- Real-time SSE progress updates during downloading, transcribing, and summarizing
+- View, copy, or download transcript and summary
+- User-friendly UI with centered layout and scrollable content
+
+## Prerequisites (system)
+- Node.js 18+
+- npm
+- `yt-dlp` in PATH ([yt-dlp GitHub](https://github.com/yt-dlp/yt-dlp))
+- `ffmpeg` in PATH
+- `python` in PATH
+- `ollama` in PATH with an available model (e.g., `gemma3:270m`)
+
+## Server setup
+```bash
+cd server
+npm install
+# Python deps for Whisper
+python -m pip install -r requirements.txt
+
 - SSE progress updates during processing
 - Download or copy transcript and summary from UI
 

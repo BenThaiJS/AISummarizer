@@ -1,5 +1,33 @@
-server/node_modules/
-client/node_modules
+# Dependencies
+/server/node_modules/
+/client/node_modules/
+
+# Environment
 .env
-dist/
-build/
+
+# Builds
+/dist/
+/build/
+
+# Runtime job state
+jobs.json
+jobs/*.json
+/server/jobs.json
+/server/jobs/*.json
+
+# Temp files
+temp/
+uploads/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Logs
+*.log
+
+# OS / Editor
+.DS_Store
+Thumbs.db
