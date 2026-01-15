@@ -1,37 +1,79 @@
 import { useEffect, useRef, useState } from "react";
 import Progress from "./components/Progress";
-import Summary from "./components/Summary";
+import Result from "./components/Result";
+import ErrorMessage from "./components/ErrorMessage";
+import { validateYouTubeURL } from "./utils/validateUrl";
 import "./App.css";
 
 export default function App() {
   const [job, setJob] = useState(null);
   const [url, setUrl] = useState("");
+  const [urlError, setUrlError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const wsRef = useRef(null);
+
+  // ---------------------------
+  // Handle URL input change with validation
+  // ---------------------------
+  const handleUrlChange = (e) => {
+    const value = e.target.value;
+    setUrl(value);
+
+    // Validate on change for real-time feedback
+    if (value.trim()) {
+      const validation = validateYouTubeURL(value);
+      setUrlError(validation.error || "");
+    } else {
+      setUrlError("");
+    }
+  };
 
   // ---------------------------
   // Start a new job
   // ---------------------------
   const start = async () => {
-    if (!url.trim()) return;
+    // Validate URL before sending
+    const validation = validateYouTubeURL(url);
+    if (!validation.isValid) {
+      setUrlError(validation.error);
+      return;
+    }
 
-    const res = await fetch("/api/jobs", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url }),
-    });
+    setIsLoading(true);
+    setUrlError("");
 
-    const data = await res.json();
-    setJob({
-      id: data.id,
-      status: data.status,
-      phase: data.phase || "starting",
-      phaseProgress: data.phaseProgress || 0,
-      overallProgress: data.overallProgress || 0,
-      result: data.result || null,
-      error: data.error || null,
-    });
+    try {
+      const res = await fetch("/api/jobs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
+      });
 
-    setUrl(""); // Clear input after starting job
+      const data = await res.json();
+
+      // Handle server-side validation errors
+      if (!res.ok) {
+        setUrlError(data.error || "Failed to start job");
+        setIsLoading(false);
+        return;
+      }
+
+      setJob({
+        id: data.id,
+        status: data.status,
+        phase: data.phase || "starting",
+        phaseProgress: data.phaseProgress || 0,
+        overallProgress: data.overallProgress || 0,
+        result: data.result || null,
+        error: data.error || null,
+      });
+
+      setUrl(""); // Clear input after starting job
+    } catch (error) {
+      setUrlError("Network error: " + error.message);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // ---------------------------
@@ -116,6 +158,16 @@ export default function App() {
   }, [job?.id]);
 
   // ---------------------------
+  // Reset job state
+  // ---------------------------
+  const resetJob = () => {
+    setJob(null);
+    setUrl("");
+    setUrlError("");
+    wsRef.current?.close();
+  };
+
+  // ---------------------------
   // UI
   // ---------------------------
   return (
@@ -123,21 +175,47 @@ export default function App() {
       <h1>YouTube Summarizer</h1>
 
       {!job && (
-        <div className="input-container">
-          <input
-            placeholder="Paste YouTube URL"
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && start()}
-          />
-          <button className="start" onClick={start}>
-            Summarize
-          </button>
-        </div>
+        <>
+          <div className="input-container">
+            <input
+              placeholder="Paste YouTube URL (youtube.com or youtu.be)"
+              value={url}
+              onChange={handleUrlChange}
+              onKeyDown={(e) => e.key === "Enter" && start()}
+              disabled={isLoading}
+              aria-label="YouTube URL input"
+            />
+            <button
+              className="start"
+              onClick={start}
+              disabled={isLoading || !url.trim() || urlError !== ""}
+              aria-label="Start summarization"
+            >
+              {isLoading ? "Loading..." : "Summarize"}
+            </button>
+          </div>
+          {urlError && <ErrorMessage error={urlError} />}
+        </>
       )}
 
-      {job && <Progress job={job} onCancel={cancelJob} />}
-      {job?.result && <Summary text={job.result} />}
+      {job && (
+        <>
+          <Progress job={job} onCancel={cancelJob} />
+          {(job.status === "failed" || job.error) && (
+            <button className="retry-button" onClick={resetJob}>
+              ← Try Another URL
+            </button>
+          )}
+        </>
+      )}
+
+      {job?.result && !job?.error && <Result result={job.result} />}
+
+      {job && (job.status === "failed" || job.error) && (
+        <button className="retry-button" onClick={resetJob} style={{ marginTop: "16px" }}>
+          ← Try Another URL
+        </button>
+      )}
     </div>
   );
 }

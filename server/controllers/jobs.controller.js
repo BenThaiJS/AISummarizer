@@ -3,10 +3,23 @@ const { createJob, getJob } = require("../jobs/jobs.store");
 const { runJob } = require("../workers/job.worker");
 const { broadcast } = require("../websocket/ws");
 const logger = require("../utils/logger");
+const { validateYouTubeURL } = require("../utils/validateUrl");
 
 exports.createJob = (req, res) => {
   const { url } = req.body;
-  if (!url) return res.status(400).json({ error: "Missing URL" });
+
+  // Validate URL is provided
+  if (!url) {
+    logger.warn("createJob:missing_url");
+    return res.status(400).json({ error: "URL is required" });
+  }
+
+  // Validate URL format
+  const validation = validateYouTubeURL(url);
+  if (!validation.isValid) {
+    logger.warn("createJob:invalid_url", { url, error: validation.error });
+    return res.status(400).json({ error: validation.error });
+  }
 
   const job = createJob(uuid());
   logger.info("Creating job", { id: job.id, url });

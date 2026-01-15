@@ -8,6 +8,23 @@ const { summarize } = require("../services/summarization.service");
 const { updateJob } = require("../jobs/jobs.store");
 const logger = require("../utils/logger");
 
+/**
+ * Cleanup temporary job directory
+ * @param {string} jobDir - Path to job directory to delete
+ */
+function cleanupJobDir(jobDir) {
+  return new Promise((resolve) => {
+    fs.rm(jobDir, { recursive: true, force: true }, (err) => {
+      if (err) {
+        logger.warn("cleanupJobDir:error", { dir: jobDir, err: err.message });
+      } else {
+        logger.info("cleanupJobDir:success", { dir: jobDir });
+      }
+      resolve(); // Always resolve, don't reject - cleanup shouldn't block
+    });
+  });
+}
+
 exports.runJob = async (job, url, broadcast) => {
   const jobDir = path.join("temp", job.id);
   fs.mkdirSync(jobDir, { recursive: true });
@@ -45,17 +62,26 @@ exports.runJob = async (job, url, broadcast) => {
     updateJob(job.id, {
       status: "completed",
       phase: "Completed",
-      result: summary,
+      result: {
+        transcript,
+        summary,
+      },
       phaseProgress: 100,
       overallProgress: 100,
     });
 
     logger.info("runJob:completed", { id: job.id });
     broadcast(job.id);
+
+    // Cleanup temp directory after successful completion
+    await cleanupJobDir(jobDir);
   } catch (err) {
     const msg = err && err.message ? err.message : String(err);
     logger.error("Job failed", { err: msg });
     updateJob(job.id, { status: "failed", error: msg });
     broadcast(job.id);
+
+    // Cleanup temp directory even on failure
+    await cleanupJobDir(jobDir);
   }
 };
