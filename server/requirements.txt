@@ -1,11 +1,9 @@
-# Whisper for transcription
-openai-whisper
+# Requirements for server-side transcription and audio handling
+# Install a compatible `torch` wheel separately (see README) to avoid platform issues.
+openai-whisper>=2023.6.1
+ffmpeg-python>=0.2.0
+numpy>=1.23
 
-# Faster audio processing
-ffmpeg-python
-
-# Optional: for better performance, GPU support, install PyTorch with CUDA if available
-torch
-
-# You may also need numpy
-numpy
+# Optional: PyTorch (install the correct wheel for your platform from https://pytorch.org/)
+# Example (CPU):
+#   pip install torch --index-url https://download.pytorch.org/whl/cpu

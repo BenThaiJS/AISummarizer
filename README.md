@@ -21,64 +21,86 @@ This project downloads YouTube audio, transcribes it locally with Whisper, summa
 - `ffmpeg` in PATH
 - `python` in PATH
 - `ollama` in PATH with an available model (e.g., `gemma3:270m`)
+# YouTube Summarizer
 
-## Server setup
-```bash
-cd server
-npm install
-# Python deps for Whisper
-python -m pip install -r requirements.txt
+A lightweight app that downloads YouTube audio, transcribes it with Whisper, and summarizes the transcript. Includes a React UI (Vite) and a Node server that orchestrates download → transcription → summarization with SSE progress updates.
 
-- SSE progress updates during processing
-- Download or copy transcript and summary from UI
+## Features
+- Summarize YouTube videos by URL
+- Upload local audio/video files for summarization
+- Real-time SSE progress updates during download, transcription, and summarization
+- Downloadable transcript and summary
 
-## Prerequisites (system)
+## System prerequisites
 - Node.js 18+
-- npm
+- npm or yarn
+- Python 3.8+ in PATH
 - `yt-dlp` in PATH (https://github.com/yt-dlp/yt-dlp)
 - `ffmpeg` in PATH
-- `python` in PATH
-- `ollama` in PATH (or change the server calls to your model)
+- (Optional) `ollama` in PATH with a model if you use local model-based summarization
 
-## Server setup
+## Python dependencies (server)
+1. Prefer using a virtual environment:
+
+```bash
+cd server
+python -m venv .venv
+# Windows
+.\.venv\Scripts\activate
+# macOS / Linux
+# source .venv/bin/activate
+```
+
+2. Install Python requirements. Whisper depends on `torch`; installing the correct `torch` wheel for your platform is recommended before installing the rest.
+
+Example (install CPU-only PyTorch first):
+
+```bash
+# Install CPU-only PyTorch (example)
+pip install torch --index-url https://download.pytorch.org/whl/cpu
+# Then install the rest
+pip install -r requirements.txt
+```
+
+If you have a CUDA-capable GPU, visit https://pytorch.org/get-started/locally/ for the correct `pip` command to install a CUDA-enabled `torch` wheel.
+
+## Server setup and run
+
 ```bash
 cd server
 npm install
-# Python deps (whisper requires torch; pick appropriate torch wheel for your platform)
-python -m pip install -r requirements.txt
+# ensure Python deps installed as above
+# Start the Node server
+node server.js
 ```
 
-If `openai-whisper` needs a specific `torch`, follow Whisper installation docs.
-
-Start server:
-```bash
-node index.js
-```
-
-Server endpoints
-- `POST /summarize` { url: string } — starts a job for a YouTube URL; response `{ jobId, progressUrl }`
-- `POST /upload` multipart/form-data with `file` — upload local file to summarize; response `{ jobId, progressUrl }`
+Server endpoints (summary)
+- `POST /summarize` — body: `{ url: string }` starts a YouTube job
+- `POST /upload` — multipart/form-data with `file` to summarize uploaded media
 - `GET /progress/:jobId` — SSE progress stream
 - `GET /result/:jobId` — fetch final transcript + summary
 
-Temporary job data is kept for 5 minutes after completion.
+Temporary job data is stored in `temp/` and rotated automatically; adjust retention in `jobs.store.js` if needed.
 
-## Client setup
+## Client (UI)
+
 ```bash
 cd client
 npm install
 npm run dev
 ```
 
-Open the dev URL (Vite) to use the UI. Paste a YouTube URL or upload a local file and click the button. Progress appears live and final transcript/summary can be downloaded.
+Open the Vite dev URL shown in the terminal and use the UI to paste a YouTube URL or upload a file.
 
 ## Troubleshooting
-- Missing `yt-dlp` / `ffmpeg`: install and ensure they are in your PATH.
+- Missing `yt-dlp` / `ffmpeg`: install and add to PATH.
 - Whisper errors: ensure `torch` is installed for your platform before installing `openai-whisper`.
-- Ollama: ensure `ollama` CLI is installed and a model like `phi3` is available, or edit `server/index.js` to call your preferred model or API.
+- Ollama: ensure the `ollama` CLI and a model are available if the server is configured to use it.
 
-## Security and production notes
-- This server is a prototype: add auth, stricter validation, and persistent storage before public use.
-- Consider streaming transcription (Whisper supports timestamps) and batching for large videos.
+## Security & production notes
+- This project is a prototype. Add authentication, validation, rate-limiting, and persistent storage before public deployment.
+- For large videos, consider chunked transcription and streaming to reduce memory and latency.
 
-*** End of README
+---
+
+If you want, I can also add explicit `requirements.txt` installation notes for Windows or update `server/README` with troubleshooting commands.
