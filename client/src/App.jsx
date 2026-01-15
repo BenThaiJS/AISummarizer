@@ -71,7 +71,9 @@ export default function App() {
       // subscribe so server can send job-specific updates
       try {
         ws.send(JSON.stringify({ type: "subscribe", jobId: job.id }));
-      } catch (e) {}
+      } catch (e) {
+        console.error("WebSocket subscribe error", e);
+      }
     };
 
     ws.onmessage = (event) => {
