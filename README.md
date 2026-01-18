@@ -97,6 +97,51 @@ Open the Vite dev URL shown in the terminal and use the UI to paste a YouTube UR
 - Whisper errors: ensure `torch` is installed for your platform before installing `openai-whisper`.
 - Ollama: ensure the `ollama` CLI and a model are available if the server is configured to use it.
 
+### yt-dlp EJS (JavaScript runtime) and age-restricted videos
+Recent yt-dlp versions require an external JavaScript runtime for YouTube decryption. This server automatically passes your Node.js executable to yt-dlp via `--js-runtimes`, but you can override/configure it with env vars in `server/.env`:
+
+```
+# Use the current Node.js by default; override if needed
+YTDLP_JS_RUNTIME_NAME=node
+YTDLP_JS_RUNTIME_PATH=C:\\Program Files\\nodejs\\node.exe
+
+# Optional: set YouTube client used by yt-dlp
+# By default, leave unset and let yt-dlp choose
+# YTDLP_EXTRACTOR_ARGS=youtube:player_client=web
+
+# If you need to access age-restricted videos, provide cookies:
+# Option 1: read from a local browser profile (on this machine)
+# Valid values: chrome | edge | firefox
+YTDLP_COOKIES_FROM_BROWSER=chrome
+
+# Option 2: point to a cookies.txt file
+# YTDLP_COOKIES_FILE=C:\\path\\to\\cookies.txt
+```
+
+Quick verification that yt-dlp can run with a JS runtime (from the `server` folder):
+
+```bash
+yt-dlp --version
+yt-dlp https://www.youtube.com/watch?v=dQw4w9WgXcQ -F --js-runtimes node:"%~dp0..\\..\\node.exe"  # Windows example if needed
+```
+
+If you encounter errors like “No supported JavaScript runtime could be found” or “Sign in to confirm your age”, set the env vars above and restart the server.
+
+Note: Avoid forcing `player_client=android` when using cookies; Android client does not support cookies and may only list storyboard images. In most cases, leaving this unset lets yt-dlp pick the right client automatically.
+
+#### Using cookies.txt (reliable on Windows)
+On some Windows setups, `--cookies-from-browser` can fail due to DPAPI or locked cookie DBs. Export cookies to a `cookies.txt` file instead:
+
+1. Install a browser extension like "Get cookies.txt" (Chrome/Edge/Firefox).
+2. Open youtube.com in the browser where you are signed in.
+3. Export cookies for the domain and save as `cookies.txt`.
+4. Place the file at `server/cookies/cookies.txt`.
+5. Alternatively, set `YTDLP_COOKIES_FILE` in `server/.env` to the absolute path.
+
+The server automatically prefers `YTDLP_COOKIES_FROM_BROWSER` if set; otherwise it uses `YTDLP_COOKIES_FILE`; otherwise it auto-detects `server/cookies/cookies.txt` if present.
+
+Tip: If using `--cookies-from-browser`, avoid running the terminal as Administrator and close all browser windows before retrying.
+
 ## Security & production notes
 - This project is a prototype. Add authentication, validation, rate-limiting, and persistent storage before public deployment.
 - For large videos, consider chunked transcription and streaming to reduce memory and latency.

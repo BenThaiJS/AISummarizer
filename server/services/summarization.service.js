@@ -1,18 +1,21 @@
-const fetch = require("node-fetch");
+const OpenAI = require("openai");
 const chunkText = require("../utils/chuckText");
 const logger = require("../utils/logger");
+const config = require("../config/env");
 
-const OLLAMA_URL = "http://localhost:11434/api/generate";
+const client = new OpenAI({
+  apiKey: config.OPENAI_API_KEY,
+});
 
 async function summarizeChunk(chunk) {
   try {
-    const res = await fetch(OLLAMA_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "gemma3:270m",
-        prompt: `
-You are an expert summarizer.
+    const completion = await client.chat.completions.create({
+      model: config.OPENAI_MODEL,
+      max_tokens: 1024,
+      messages: [
+        {
+          role: "user",
+          content: `You are an expert summarizer.
 
 Summarize the following transcript chunk into concise bullet points.
 Focus on:
@@ -21,21 +24,12 @@ Focus on:
 - Clear wording
 
 Transcript:
-${chunk}
-`,
-        stream: false,
-      }),
+${chunk}`,
+        },
+      ],
     });
 
-    if (!res.ok) {
-      const text = await res.text();
-      const err = new Error(`ollama error: ${res.status} ${text}`);
-      logger.error("summarize:api_error", { err: err.message });
-      throw err;
-    }
-
-    const data = await res.json();
-    return data.response;
+    return completion.choices[0].message.content;
   } catch (e) {
     logger.error("summarize:chunk_error", { err: e.message });
     throw e;
