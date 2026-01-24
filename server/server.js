@@ -18,7 +18,9 @@ setInterval(() => {
   }
 }, CLEANUP_INTERVAL);
 
+
 server.listen(PORT, () => {
-  logger.info(`Server running on http://localhost:${PORT}`);
-  console.log(`Server running on http://localhost:${PORT}`);
+  const msg = `AI YouTuber Summarizer server has been started! Access at http://localhost:${PORT}`;
+  logger.info(msg);
+  console.log(msg);
 });

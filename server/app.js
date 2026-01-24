@@ -19,4 +19,10 @@ app.get("/health", (_, res) => {
   });
 });
 
+
+// Default route for root
+app.get("/", (req, res) => {
+  res.send("<h2>AI YouTuber Summarizer server has been started. Use the client UI or API endpoints to interact.</h2>");
+});
+
 module.exports = app;

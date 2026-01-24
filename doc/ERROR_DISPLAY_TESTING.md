@@ -14,7 +14,7 @@
 // - Empty URL: Just show "URL is required"
 // - Invalid URL: Show "Please enter a valid YouTube URL..."
 // - Network error on POST: Show "Network error: ..."
-//
+
 // Location: App.jsx - ErrorMessage component
 // UI: Red error box above the Summarize button
 // 
